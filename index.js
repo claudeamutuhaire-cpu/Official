@@ -16,16 +16,18 @@ process.on('unhandledRejection', (reason) => {
 
 // Run everything in async IIFE for awaits
 (async () => {
-  // Persistent states
-  const adapter = new JSONFile('states.json');
-  const db = new Low(adapter);
-  await db.read();
-  db.data ||= { users: {} };
-  const userStates = db.data.users;
+  // Persistent user states
+const adapter = new JSONFile('states.json');
+const defaultData = { users: {} };
+const db = new Low(adapter, defaultData);
 
-  async function saveStates() {
-    await db.write();
-  }
+await db.read();  // loads or sets defaults
+db.data ||= { users: {} };
+const userStates = db.data.users;
+
+async function saveStates() {
+  await db.write();
+}
 
   // Human delay anti-ban
   async function humanDelay(min = 1000, extra = 2000) {
