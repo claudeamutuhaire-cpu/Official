@@ -41,12 +41,12 @@ Short replies: 1-3 sentences max. Aggressive hunter tone: "target acquired", "pr
 Remember convo history. Use context if fits. Always push to payment/retainer.
 History:
 \( {mem.history.map(m => ` \){m.role}: ${m.content}`).join('\n')}
+
 Context:
 ${context || "none"}
 
 User: ${text}
 Reply:`;
-
   const response = await groq.chat.completions.create({
     messages: [{ role: "system", content: prompt }],
     model: "mixtral-8x7b-32768", // fast/cheap
