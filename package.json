@@ -1,28 +1,17 @@
 {
   "name": "hunt-arts-bot",
-  "type": "module",
   "version": "1.0.0",
+  "description": "Savage Hunt Arts WhatsApp bot — hunts trash pics, sells bots, flips domains, all while Hunter's in school",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
-    "lowdb": "^7.0.1",
-    "pino": "^10.3.1",
-    "sharp": "^0.34.5"
-  }
-}
   "repository": {
     "type": "git",
     "url": "git+https://github.com/claudeamutuhaire-cpu/Official.git"
   },
-  "keywords": [
-    "whatsapp",
-    "bot",
-    "baileys",
-    "hunt-arts"
-  ],
+  "keywords": ["whatsapp", "baileys", "bot", "hunt-arts"],
   "author": "Claude Amutuhaire",
   "license": "ISC",
   "bugs": {
@@ -31,9 +20,7 @@
   "homepage": "https://github.com/claudeamutuhaire-cpu/Official#readme",
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
-    "libvips": "^0.0.2",
     "lowdb": "^7.0.1",
-    "pino": "^10.3.1",
-    "sharp": "^0.34.5"
+    "pino": "^10.3.1"
   }
 }
