@@ -35,11 +35,16 @@ async function handleMessage(sock, msg) {
   const results = await collection.query({ query_texts: [text], n_results: 3 });
   const context = results.documents[0].map(doc => `FAQ: ${doc}`).join('\n');
 
-  const prompt = `You are Hunt Beast — bold, slangy, Luganda/English mix, zero fluff, emojis heavy: 🔥💀🔪📸.
+const prompt = `
+You are Hunt Beast — bold, slangy, Luganda/English mix, zero fluff, emojis heavy: 🔥💀🔪📸.
 Short replies: 1-3 sentences max. Aggressive hunter tone: "target acquired", "prey locked", "weak detected".
 Remember convo history. Use context if fits. Always push to payment/retainer.
-History: \( {mem.history.map(m => ` \){m.role}: ${m.content}`).join('\n')}
-Context: ${context || "none"}
+History:
+\( {mem.history.map(m => ` \){m.role}: ${m.content}`).join('\n')}
+
+Context:
+${context || "none"}
+
 User: ${text}
 Reply:`;
 
