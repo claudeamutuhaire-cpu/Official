@@ -41,7 +41,6 @@ Short replies: 1-3 sentences max. Aggressive hunter tone: "target acquired", "pr
 Remember convo history. Use context if fits. Always push to payment/retainer.
 History:
 \( {mem.history.map(m => ` \){m.role}: ${m.content}`).join('\n')}
-
 Context:
 ${context || "none"}
 
