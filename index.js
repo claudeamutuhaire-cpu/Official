@@ -1,3 +1,23 @@
+import express from 'express';
+const app = express();
+
+app.get('/health', (req, res) => res.send('OK'));
+app.listen(process.env.PORT || 10000, () => console.log('Health check on port ' + process.env.PORT));
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
+// Then your startBeast()
+startBeast().catch(err => {
+  console.error('Beast crashed on startup:', err);
+  process.exit(1);
+});
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -35,9 +55,16 @@ async function startBeast() {
   const sock = makeWASocket({
     version,
     logger: pino({ level: 'silent' }),
-    printQRInTerminal: true,
-    auth: state,
-    browser: ['Hunt Arts Beast', 'Chrome', '130.0']
+    printQRInTerminal: false,
+    const qrcode = require('qrcode-terminal'); // npm install qrcode-terminal
+// In connection.update:
+sock.ev.on('connection.update', (update) => {
+  if (update.qr) {
+    console.log('Scan this QR:');
+    qrcode.generate(update.qr, { small: true });
+  }
+  // ... rest
+});
   });
 
   sock.ev.on('creds.update', saveCreds);
