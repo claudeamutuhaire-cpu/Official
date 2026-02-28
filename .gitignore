@@ -1,0 +1,6 @@
+node_modules
+hunt_auth/
+auth_info/
+*.log
+uploads/
+.env

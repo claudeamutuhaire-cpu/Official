@@ -1,0 +1,27 @@
+{
+  "name": "hunt-arts-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claudeamutuhaire-cpu/Official.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/claudeamutuhaire-cpu/Official/issues"
+  },
+  "homepage": "https://github.com/claudeamutuhaire-cpu/Official#readme",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "lowdb": "^7.0.1",
+    "pino": "^10.3.1",
+    "sharp": "^0.34.5"
+  }
+}
