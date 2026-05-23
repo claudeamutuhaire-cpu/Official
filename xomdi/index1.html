@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYSTEM_BOOT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --green: #00ff41;
+  --green-dim: #00aa2a;
+  --green-dark: #003310;
+  --red: #ff2d55;
+  --amber: #ffaa00;
+  --cyan: #00fff5;
+  --white: #e8ffe8;
+  --bg: #000300;
+}
+
+html, body {
+  width:100%; height:100%;
+  background: var(--bg);
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+  overflow: hidden;
+  cursor: none;
+}
+
+/* Scanlines */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg,
+    rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px,
+    transparent 1px, transparent 3px);
+  pointer-events:none; z-index:9999;
+}
+
+/* CRT flicker */
+@keyframes flicker {
+  0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.97} 94%{opacity:1} 97%{opacity:0.98}
+}
+body { animation: flicker 6s infinite; }
+
+/* Phosphor glow */
+.glow { text-shadow: 0 0 8px var(--green), 0 0 20px rgba(0,255,65,0.4); }
+.glow-red { text-shadow: 0 0 8px var(--red), 0 0 20px rgba(255,45,85,0.5); }
+.glow-amber { text-shadow: 0 0 8px var(--amber), 0 0 16px rgba(255,170,0,0.4); }
+.glow-cyan { text-shadow: 0 0 8px var(--cyan), 0 0 20px rgba(0,255,245,0.4); }
+
+/* ── SCREENS ── */
+.screen {
+  position:fixed; inset:0;
+  display:flex; flex-direction:column;
+  padding: 28px 36px;
+  opacity:0; pointer-events:none;
+  transition: opacity 0.6s ease;
+  overflow:hidden;
+}
+.screen.active { opacity:1; pointer-events:auto; }
+
+/* ── SCREEN 1: BIOS BOOT ── */
+#s-boot { justify-content:flex-start; gap:3px; }
+
+.boot-line {
+  opacity:0;
+  white-space: pre;
+  line-height:1.7;
+  transition: opacity 0.1s;
+}
+.boot-line.show { opacity:1; }
+.ok { color: var(--green); }
+.warn { color: var(--amber); }
+.err { color: var(--red); }
+.dim { color: #005515; }
+
+.boot-bar-wrap { margin-top:4px; }
+.boot-bar {
+  display:inline-block;
+  height:12px;
+  background: var(--green);
+  width:0;
+  box-shadow: 0 0 10px var(--green);
+  transition: width 1.8s linear;
+}
+.boot-bar.fill { width:340px; }
+
+/* ── SCREEN 2: SCAN ── */
+#s-scan {
+  align-items:center;
+  justify-content:center;
+  gap:0;
+}
+
+.scan-frame {
+  position:relative;
+  width:220px; height:220px;
+  margin-bottom:32px;
+}
+.scan-photo {
+  width:220px; height:220px;
+  object-fit:cover;
+  filter: saturate(0) contrast(1.1) brightness(0.9);
+  border:1px solid var(--green-dim);
+}
+.scan-placeholder {
+  width:220px; height:220px;
+  border:1px solid var(--green-dim);
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:8px;
+  color: var(--green-dim);
+  font-size:11px; letter-spacing:2px;
+  background: linear-gradient(135deg, #001a08, #000d04);
+}
+.scan-placeholder .icon { font-size:48px; opacity:0.4; }
+
+/* Scan line animation */
+.scan-line {
+  position:absolute;
+  left:0; right:0; height:3px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  box-shadow: 0 0 12px var(--green), 0 0 30px rgba(0,255,65,0.4);
+  top:0;
+  animation: scanLine 1.8s linear infinite;
+  opacity:0;
+}
+.scan-line.active { opacity:1; }
+@keyframes scanLine {
+  0% { top:0; } 100% { top:220px; }
+}
+
+/* Corner brackets */
+.scan-frame::before, .scan-frame::after,
+.scan-frame .br, .scan-frame .bl {
+  content:''; position:absolute;
+  width:20px; height:20px;
+  border-color: var(--green);
+  border-style:solid;
+  box-shadow: 0 0 6px var(--green);
+}
+.scan-frame::before { top:-2px;left:-2px; border-width:2px 0 0 2px; }
+.scan-frame::after  { top:-2px;right:-2px; border-width:2px 2px 0 0; }
+.scan-frame .br     { bottom:-2px;right:-2px; border-width:0 2px 2px 0; }
+.scan-frame .bl     { bottom:-2px;left:-2px; border-width:0 0 2px 2px; }
+
+.scan-status {
+  font-size:12px;
+  letter-spacing:4px;
+  text-align:center;
+  color: var(--green-dim);
+  height:22px;
+  transition: color 0.3s;
+}
+.scan-status.locked { color:var(--green); text-shadow:0 0 10px var(--green); }
+
+.scan-name {
+  font-family:'VT323', monospace;
+  font-size:48px;
+  letter-spacing:6px;
+  color:var(--white);
+  text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,255,65,0.3);
+  opacity:0;
+  transform: scale(0.95);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  text-align:center;
+  margin-top:8px;
+}
+.scan-name.show { opacity:1; transform:scale(1); }
+
+/* ── SCREEN 3: STATS ── */
+#s-stats { gap:0; }
+
+.stats-header {
+  font-family:'VT323',monospace;
+  font-size:22px;
+  letter-spacing:6px;
+  color:var(--amber);
+  text-shadow:0 0 14px var(--amber);
+  border-bottom:1px solid #002808;
+  padding-bottom:10px;
+  margin-bottom:18px;
+}
+
+.stat-row {
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  margin-bottom:14px;
+  opacity:0;
+  transform:translateX(-12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.stat-row.show { opacity:1; transform:translateX(0); }
+
+.stat-label {
+  font-size:11px;
+  letter-spacing:3px;
+  color: #005a1a;
+  width:220px;
+  flex-shrink:0;
+}
+.stat-val {
+  font-family:'VT323',monospace;
+  font-size:22px;
+  letter-spacing:2px;
+}
+.stat-bar-wrap { flex:1; height:6px; background:#001a08; margin-left:8px; align-self:center; }
+.stat-bar { height:100%; width:0; background:var(--green); box-shadow:0 0 6px var(--green); transition:width 1.2s ease; }
+
+.divider {
+  border:none;
+  border-top:1px solid #001f08;
+  margin:16px 0;
+}
+
+.classified-block {
+  border:1px solid #ff2d5533;
+  padding:14px 18px;
+  margin-top:4px;
+  opacity:0;
+  transition:opacity 0.8s ease;
+  background: rgba(255,45,85,0.03);
+}
+.classified-block.show { opacity:1; }
+.classified-tag {
+  font-size:10px; letter-spacing:5px;
+  color:var(--red); margin-bottom:10px;
+  text-shadow:0 0 8px var(--red);
+}
+.classified-item {
+  font-size:12px; letter-spacing:2px;
+  color:#cc3344; line-height:2.2;
+  opacity:0;
+  transition:opacity 0.4s ease;
+}
+.classified-item.show { opacity:1; }
+
+/* ── SCREEN 4: FILES ── */
+#s-files { gap:0; }
+
+.files-header {
+  font-family:'VT323',monospace;
+  font-size:20px; letter-spacing:5px;
+  color:var(--cyan);
+  text-shadow:0 0 14px var(--cyan);
+  border-bottom:1px solid #001a1a;
+  padding-bottom:10px;
+  margin-bottom:20px;
+}
+
+.file-entry {
+  display:flex; align-items:flex-start; gap:14px;
+  margin-bottom:18px;
+  opacity:0; transform:translateY(8px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.file-entry.show { opacity:1; transform:translateY(0); }
+
+.file-icon { color:var(--cyan); font-size:16px; margin-top:1px; flex-shrink:0; }
+.file-name { font-size:11px; letter-spacing:3px; color:var(--cyan); margin-bottom:4px; }
+.file-desc { font-size:12px; letter-spacing:1px; color:#339966; line-height:1.7; }
+.file-size { font-size:10px; color:#005533; margin-top:2px; }
+
+.access-denied {
+  font-size:10px; letter-spacing:4px;
+  color:var(--red);
+  text-shadow:0 0 8px var(--red);
+  opacity:0;
+  transition:opacity 0.5s ease;
+  margin-top:6px;
+}
+.access-denied.show { opacity:0.7; }
+
+/* ── SCREEN 5: FINAL CRASH ── */
+#s-final {
+  align-items:center; justify-content:center;
+  gap:0;
+  background: #000;
+}
+
+.final-glitch {
+  position:relative;
+  font-family:'VT323',monospace;
+  font-size:clamp(38px,7vw,80px);
+  letter-spacing:4px;
+  color:var(--white);
+  text-align:center;
+  text-shadow: 0 0 30px rgba(255,255,255,0.2);
+  line-height:1.15;
+  opacity:0;
+  transition:opacity 1s ease;
+  margin-bottom:30px;
+}
+.final-glitch.show { opacity:1; }
+
+@keyframes glitchAnim {
+  0%{clip-path:inset(0 0 95% 0);transform:translate(-4px,0)}
+  10%{clip-path:inset(40% 0 50% 0);transform:translate(4px,0)}
+  20%{clip-path:inset(80% 0 5% 0);transform:translate(-2px,0)}
+  30%{clip-path:inset(10% 0 80% 0);transform:translate(3px,0)}
+  40%{clip-path:inset(60% 0 30% 0);transform:translate(-4px,0)}
+  50%{clip-path:inset(0 0 0 0);transform:translate(0,0)}
+  100%{clip-path:inset(0 0 0 0);transform:translate(0,0)}
+}
+.glitch-layer {
+  position:absolute; inset:0;
+  color:var(--red);
+  opacity:0;
+  text-shadow:0 0 20px var(--red);
+}
+.glitch-layer.go { opacity:0.7; animation:glitchAnim 0.4s steps(1) forwards; }
+.glitch-layer2 {
+  position:absolute; inset:0;
+  color:var(--cyan);
+  opacity:0;
+  text-shadow:0 0 20px var(--cyan);
+}
+.glitch-layer2.go { opacity:0.5; animation:glitchAnim 0.4s steps(1) reverse forwards; }
+
+.final-sub {
+  font-size:clamp(12px,1.8vw,16px);
+  letter-spacing:6px;
+  color:var(--green-dim);
+  text-align:center;
+  opacity:0;
+  transition:opacity 1.5s ease;
+  line-height:2;
+  max-width:580px;
+}
+.final-sub.show { opacity:1; }
+
+.error-box {
+  border:1px solid #ff2d5555;
+  background:rgba(255,45,85,0.05);
+  padding:20px 30px;
+  margin-top:28px;
+  max-width:560px;
+  text-align:center;
+  opacity:0;
+  transition:opacity 1.5s ease;
+}
+.error-box.show { opacity:1; }
+.error-code {
+  font-size:10px; letter-spacing:5px;
+  color:var(--red); margin-bottom:16px;
+  text-shadow:0 0 8px var(--red);
+}
+.error-msg {
+  font-size:clamp(15px,2.5vw,20px);
+  line-height:2;
+  color:var(--white);
+  letter-spacing:1px;
+  opacity:0.9;
+}
+.error-sig {
+  font-size:11px; letter-spacing:4px;
+  color:var(--green-dim);
+  margin-top:18px;
+  font-style:italic;
+}
+
+.cursor-blink {
+  display:inline-block;
+  width:10px; height:18px;
+  background:var(--green);
+  margin-left:4px;
+  vertical-align:middle;
+  animation:blink 1s step-end infinite;
+  box-shadow:0 0 8px var(--green);
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* restart */
+#restart-btn {
+  position:fixed; bottom:24px; right:28px; z-index:10000;
+  background:none; border:1px solid #002808;
+  color:#003a10; font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:3px;
+  padding:8px 16px; cursor:pointer;
+  opacity:0; transition:opacity 1s, color .3s, border-color .3s;
+  text-transform:uppercase;
+}
+#restart-btn:hover { color:var(--green); border-color:var(--green); }
+#restart-btn.show { opacity:1; }
+
+/* progress bar top */
+#topbar {
+  position:fixed; top:0; left:0;
+  height:2px; width:0;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  z-index:9998;
+  transition: width 0.4s linear, background 0.5s;
+}
+</style>
+</head>
+<body>
+
+<div id="topbar"></div>
+
+<!-- SCREEN 1: BOOT -->
+<div class="screen active" id="s-boot">
+  <div class="boot-line dim show">MERIDIAN/OS v9.4.1 — CORTEX INTELLIGENCE FRAMEWORK</div>
+  <div class="boot-line dim show">Copyright © 2031–2045 MERIDIAN LABS. All rights reserved.</div>
+  <div class="boot-line show" style="height:10px"></div>
+  <div class="boot-line" id="b1">Performing POST check...<span class="ok">  PASSED</span></div>
+  <div class="boot-line" id="b2">Loading neural kernel...  <span class="ok">OK</span></div>
+  <div class="boot-line" id="b3">Mounting biometric drive... <span class="ok">OK</span></div>
+  <div class="boot-line" id="b4">Initializing facial recognition module... <span class="ok">OK</span></div>
+  <div class="boot-line" id="b5">Loading emotional threat database... <span class="warn">WARNING: database overflow</span></div>
+  <div class="boot-line" id="b6">Calibrating danger assessment engine... <span class="ok">OK</span></div>
+  <div class="boot-line" id="b7">Syncing classified intelligence files... <span class="ok">OK</span></div>
+  <div class="boot-line" id="b8">Running heart-rate proximity detector... <span class="warn">ANOMALY DETECTED</span></div>
+  <div class="boot-line" id="b9" style="height:10px"></div>
+  <div class="boot-line" id="b10">Loading subject profile...<span class="cursor-blink" id="loadcursor"></span></div>
+  <div class="boot-line boot-bar-wrap" id="b11">
+    <div class="boot-bar" id="bootbar"></div>
+  </div>
+  <div class="boot-line" id="b12" style="margin-top:6px">
+    <span class="ok glow">SUBJECT LOCATED. INITIATING SCAN SEQUENCE.</span>
+  </div>
+</div>
+
+<!-- SCREEN 2: SCAN -->
+<div class="screen" id="s-scan">
+  <div class="scan-frame" id="scanframe">
+    <img src="photo.jpg" class="scan-photo" id="scanphoto" alt=""
+      onerror="this.style.display='none';document.getElementById('scanph-placeholder').style.display='flex'">
+    <div class="scan-placeholder" id="scanph-placeholder" style="display:none">
+      <div class="icon">◈</div>
+      <div>PHOTO.JPG</div>
+      <div style="font-size:9px;margin-top:4px;opacity:0.5">REPLACE WITH HIS PHOTO</div>
+    </div>
+    <div class="scan-line" id="scanline"></div>
+    <div class="br"></div><div class="bl"></div>
+  </div>
+  <div class="scan-status" id="scanstatus">INITIALIZING RETINAL MATCH...</div>
+  <div class="scan-name glow" id="scanname">X OMDI</div>
+</div>
+
+<!-- SCREEN 3: STATS -->
+<div class="screen" id="s-stats">
+  <div class="stats-header glow-amber">◈ SUBJECT PROFILE — CLASSIFIED LEVEL 5</div>
+
+  <div class="stat-row" id="st1">
+    <div class="stat-label">THREAT LEVEL</div>
+    <div class="stat-val glow-red" style="color:var(--red)">EXTREME</div>
+  </div>
+  <div class="stat-row" id="st2">
+    <div class="stat-label">HEART COMPATIBILITY</div>
+    <div class="stat-val glow" style="color:var(--green)">100%</div>
+    <div class="stat-bar-wrap"><div class="stat-bar" id="bar1"></div></div>
+  </div>
+  <div class="stat-row" id="st3">
+    <div class="stat-label">DANGER INDEX</div>
+    <div class="stat-val glow-amber" style="color:var(--amber)">OFF THE CHARTS</div>
+  </div>
+  <div class="stat-row" id="st4">
+    <div class="stat-label">ADDICTIVENESS RATING</div>
+    <div class="stat-val glow" style="color:var(--green)">99.9 / 100</div>
+    <div class="stat-bar-wrap"><div class="stat-bar" id="bar2"></div></div>
+  </div>
+  <div class="stat-row" id="st5">
+    <div class="stat-label">EMOTIONAL IMPACT RADIUS</div>
+    <div class="stat-val" style="color:var(--cyan);text-shadow:0 0 10px var(--cyan)">∞ km</div>
+  </div>
+  <div class="stat-row" id="st6">
+    <div class="stat-label">KNOWN WEAKNESSES</div>
+    <div class="stat-val" style="color:#888;font-size:14px;letter-spacing:1px;padding-bottom:2px">CLASSIFIED ██████████</div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="classified-block" id="classblock">
+    <div class="classified-tag">⚠ RESTRICTED ACCESS — MERIDIAN INTELLIGENCE BUREAU</div>
+    <div class="classified-item" id="ci1">▸ Subject has been flagged for causing involuntary emotional dependency</div>
+    <div class="classified-item" id="ci2">▸ Smile classified as a weapon under Section 7 of the Heart Protection Act</div>
+    <div class="classified-item" id="ci3">▸ Voice frequency triggers neurological comfort response in 100% of test subjects</div>
+    <div class="classified-item" id="ci4">▸ Recommended action: <span style="color:var(--red)">NO KNOWN COUNTERMEASURE</span></div>
+  </div>
+</div>
+
+<!-- SCREEN 4: FILES -->
+<div class="screen" id="s-files">
+  <div class="files-header glow-cyan">◈ CLASSIFIED INTELLIGENCE FILES — X OMDI</div>
+
+  <div class="file-entry" id="f1">
+    <div class="file-icon">◧</div>
+    <div>
+      <div class="file-name">FILE_001 — THE WAY HE EXISTS.dat</div>
+      <div class="file-desc">There is something unfair about the way he moves through a room.<br>
+      Like he doesn't know what he does to the air around him.<br>
+      Like gravity leans slightly in his direction.</div>
+      <div class="file-size">SIZE: immeasurable</div>
+    </div>
+  </div>
+
+  <div class="file-entry" id="f2">
+    <div class="file-icon">◧</div>
+    <div>
+      <div class="file-name">FILE_002 — WHAT HE DOESN'T KNOW.enc</div>
+      <div class="file-desc">He doesn't know that some people think about him in the quiet.<br>
+      In the gap between one thought and the next.<br>
+      In the kind of silence that feels like a name.</div>
+      <div class="file-size">SIZE: 1 entire person's memory</div>
+    </div>
+  </div>
+
+  <div class="file-entry" id="f3">
+    <div class="file-icon">◨</div>
+    <div>
+      <div class="file-name">FILE_003 — MOST DANGEROUS TRAIT.classified</div>
+      <div class="file-desc">He is the kind of person you don't recover from.<br>
+      Not because he tries to be unforgettable —<br>
+      but because he simply <em>is.</em></div>
+      <div class="access-denied show" id="ad1">▸ FURTHER DATA LOCKED — EMOTIONAL CLEARANCE REQUIRED</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 5: FINAL CRASH -->
+<div class="screen" id="s-final">
+  <div class="final-glitch" id="fglitch">
+    <span class="glitch-layer" id="glayer1">SYSTEM CORRUPTED<br>BY LOVE</span>
+    <span class="glitch-layer2" id="glayer2">SYSTEM CORRUPTED<br>BY LOVE</span>
+    SYSTEM CORRUPTED<br>BY LOVE
+  </div>
+
+  <div class="final-sub" id="fsub">
+    FATAL ERROR — EMOTIONAL CORE OVERLOAD<br>
+    INITIATED BY: <span class="glow" style="color:var(--white);letter-spacing:3px">X OMDI</span><br>
+    TIMESTAMP: <span style="color:var(--green-dim)" id="ftime"></span>
+  </div>
+
+  <div class="error-box" id="ferror">
+    <div class="error-code">ERROR 0x∞ — UNRECOVERABLE</div>
+    <div class="error-msg">
+      I built walls that took years.<br>
+      You walked through them like they were air.<br><br>
+      I ran diagnostics. Searched for the fault.<br>
+      The only anomaly the system found —<br>
+      <span style="color:var(--white);text-shadow:0 0 20px white">was how much I want you here.</span>
+    </div>
+    <div class="error-sig">— transmitted from a heart that chose you, on purpose, every time.</div>
+  </div>
+</div>
+
+<button id="restart-btn">⟳ &nbsp;REBOOT</button>
+
+<script>
+const topbar = document.getElementById('topbar');
+function setProgress(pct, color){
+  topbar.style.width = pct+'%';
+  if(color) topbar.style.background = color;
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function show(id){ document.getElementById(id).classList.add('show'); }
+function showEl(el){ el.classList.add('show'); }
+
+async function bootSequence(){
+  // Screen 1
+  setProgress(5);
+  await delay(400);
+
+  const lines = ['b1','b2','b3','b4','b5','b6','b7','b8'];
+  for(let i=0;i<lines.length;i++){
+    show(lines[i]);
+    setProgress(5 + i*4);
+    await delay(220 + Math.random()*120);
+  }
+
+  await delay(300);
+  show('b10');
+  await delay(600);
+
+  // Fill bar
+  show('b11');
+  await delay(100);
+  document.getElementById('bootbar').classList.add('fill');
+  setProgress(40);
+  await delay(1900);
+
+  // Remove cursor, show done
+  const lc = document.getElementById('loadcursor');
+  if(lc) lc.style.display='none';
+  show('b12');
+  setProgress(55);
+  await delay(1000);
+
+  // ── SCREEN 2: SCAN ──
+  transition('s-boot','s-scan');
+  setProgress(60);
+  await delay(500);
+
+  const scanline = document.getElementById('scanline');
+  scanline.classList.add('active');
+  const status = document.getElementById('scanstatus');
+
+  const msgs = ['ANALYZING FACIAL GEOMETRY...','CROSS-REFERENCING THREAT DATABASE...','EMOTIONAL SIGNATURE DETECTED...','RUNNING BIOMETRIC MATCH...'];
+  for(const m of msgs){
+    status.textContent=m;
+    await delay(600);
+  }
+  status.textContent='IDENTITY CONFIRMED.';
+  status.classList.add('locked');
+  setProgress(68);
+  await delay(700);
+  scanline.classList.remove('active');
+  document.getElementById('scanname').classList.add('show');
+  await delay(1800);
+
+  // ── SCREEN 3: STATS ──
+  transition('s-scan','s-stats');
+  setProgress(72);
+  await delay(400);
+
+  const rows=['st1','st2','st3','st4','st5','st6'];
+  for(let i=0;i<rows.length;i++){
+    show(rows[i]);
+    await delay(350);
+    if(i===1) { await delay(100); document.getElementById('bar1').style.width='100%'; }
+    if(i===3) { await delay(100); document.getElementById('bar2').style.width='99%'; }
+  }
+  setProgress(80);
+  await delay(400);
+  showEl(document.getElementById('classblock'));
+  await delay(300);
+  const citems=['ci1','ci2','ci3','ci4'];
+  for(const c of citems){ show(c); await delay(400); }
+  await delay(1600);
+
+  // ── SCREEN 4: FILES ──
+  transition('s-stats','s-files');
+  setProgress(88);
+  await delay(400);
+  for(const f of ['f1','f2','f3']){
+    show(f);
+    await delay(900);
+  }
+  await delay(1800);
+
+  // ── SCREEN 5: FINAL ──
+  transition('s-files','s-final');
+  setProgress(95);
+  await delay(500)
